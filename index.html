@@ -305,7 +305,7 @@ dialog input,dialog select,.screen textarea{width:100%;padding:10px;border:1px s
 </dialog>
 
 <script>
-const VERSION='1.0.2';
+const VERSION='1.0.3';
 /* ===== 端末内の保存（読み書きに失敗しても動くように） ===== */
 const store={
   get(k){try{return localStorage.getItem(k);}catch(e){return null;}},
@@ -548,7 +548,8 @@ function emptyState(){
 /* ===== ホーム ===== */
 function renderHome(){
   if(!ALL.length)return emptyState();
-  const nw=netWorth(TODAY),pe=prevMonthEnd(),base=pe<START?nwStart(START):netWorth(pe);
+  // 比べる相手は「今月初めの純資産」。今月追加した口座の開始残高は、増えた分に数えない
+  const nw=netWorth(TODAY),pe=prevMonthEnd(),base=nwStart(TODAY.slice(0,8)+'01');
   const A=sum(ASSETS,TODAY),L=sum(LIABS,TODAY);
   const [cy,cm]=MONTHS[MONTHS.length-1];const {from,to}=monthRange(cy,cm);
   const inc=sum(INC,to,from),exp=sum(EXP,to,from),val=sum(VAL,to,from);
