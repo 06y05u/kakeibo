@@ -305,7 +305,7 @@ dialog input,dialog select,.screen textarea{width:100%;padding:10px;border:1px s
 </dialog>
 
 <script>
-const VERSION='1.0.0';
+const VERSION='1.0.1';
 /* ===== 端末内の保存（読み書きに失敗しても動くように） ===== */
 const store={
   get(k){try{return localStorage.getItem(k);}catch(e){return null;}},
@@ -320,7 +320,7 @@ const conf=()=>{const c=store.json(K.conf);return c&&c.u&&c.k?c:null;};
 const TYPE={'資産':'asset','負債':'liab','純資産':'equity','収入':'inc','費用':'exp','評価':'val'};
 const DEBIT_NORMAL=new Set(['asset','exp']);
 const UNC='未分類';
-let D=null,ACC={},ALL=[],TODAY='',START='',ASSETS=[],LIABS=[],EXP=[],INC=[],INC_ASSET=[],VAL=[],MONTHS=[];
+let D=null,ACC={},ALL=[],TODAY='',START='',PRE=false,ASSETS=[],LIABS=[],EXP=[],INC=[],INC_ASSET=[],VAL=[],MONTHS=[];
 const state={tab:store.get(K.tab)||'home',plIdx:-1,jf:'all',jlimit:60};
 
 const pad=n=>String(n).padStart(2,'0');
@@ -361,7 +361,8 @@ async function api(action,...args){
 }
 
 function load(d,cached){
-  D=d;TODAY=d.today;START=d.start||d.today;ACC={};
+  // 開始日がまだ来ていないとき（初期設定の当日など）は、開始日の時点＝開始残高を表示する
+  D=d;START=d.start||d.today;PRE=START>d.today;TODAY=PRE?START:d.today;ACC={};
   d.accounts.forEach(a=>ACC[a.name]={t:TYPE[a.type]||'other',g:a.group});
   const of=t=>d.accounts.filter(a=>TYPE[a.type]===t).map(a=>a.name);
   ASSETS=of('asset');LIABS=of('liab');EXP=of('exp');INC=of('inc');VAL=of('val');
@@ -554,8 +555,9 @@ function renderHome(){
   const unc=ALL.filter(e=>e.dr===UNC||e.cr===UNC).slice().reverse();
   const recent=ALL.filter(e=>e.src!=='時価'&&e.src!=='開始残高').slice(-6).reverse();
   main.innerHTML=`
+  ${PRE?`<section class="card alert"><h2>${fmtD(START)}から記録が始まります</h2><p class="note" style="margin:0">いまは、登録した<b style="color:var(--ink)">開始残高</b>をもとに表示しています。開始日になると、カードの利用や給与などが自動で反映されていきます。</p></section>`:''}
   <section class="card hero">
-    <div class="k">純資産（${fmtD(TODAY)} 時点）</div>
+    <div class="k">純資産（${PRE?'開始残高':fmtD(TODAY)+' 時点'}）</div>
     <div class="v">${yen(nw)}</div>
     ${delta(nw-base,pe<START?'開始時から':'前月末比')}
     <div class="grid2">
