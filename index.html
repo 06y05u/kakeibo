@@ -305,7 +305,7 @@ dialog input,dialog select,.screen textarea{width:100%;padding:10px;border:1px s
 </dialog>
 
 <script>
-const VERSION='1.0.1';
+const VERSION='1.0.2';
 /* ===== 端末内の保存（読み書きに失敗しても動くように） ===== */
 const store={
   get(k){try{return localStorage.getItem(k);}catch(e){return null;}},
@@ -1000,8 +1000,10 @@ async function renderSettings(){
     ${pin?`<div class="setrow"><div>暗証番号ロックをやめる</div><button id="sPinOff">オフにする</button></div>`:''}
     ${pin&&canFid?`<div class="setrow"><div>Face ID / Touch ID<div class="sub">${fid?'オン':'オフ'}</div></div><button id="sFid">${fid?'オフにする':'オンにする'}</button></div>`:''}
     <div class="setrow"><div>このiPhoneから全データを消す<div class="sub">スプレッドシートのデータは消えません</div></div><button id="sWipe" style="color:var(--down)">消す</button></div>
+    <div class="setrow"><div>アプリを最新版にする<div class="sub">画面が古いままのときに使います。データは消えません</div></div><button id="sUpdate">更新</button></div>
     <p class="note" style="margin:12px 0 0">バージョン ${VERSION}<br>データはあなたのGoogleスプレッドシートにだけ保存されています。</p>`;
   $('sReconnect').onclick=()=>{$('dlgSet').close();showSetup();};
+  $('sUpdate').onclick=()=>{$('dlgSet').close();toast('最新版を読み込んでいます…');forceUpdate();};
   $('sPin').onclick=()=>{$('dlgSet').close();choosePin(false);};
   const po=$('sPinOff');if(po)po.onclick=()=>{if(confirm('暗証番号ロックをオフにしますか？')){store.del(K.pin);store.del(K.fid);renderSettings();}};
   const sf=$('sFid');if(sf)sf.onclick=async()=>{if(fid){store.del(K.fid);}else{try{await fidRegister();toast('Face IDを設定しました');}catch(e){toast('設定できませんでした');}}renderSettings();};
@@ -1012,7 +1014,18 @@ $('gear').onclick=async()=>{await renderSettings();openDlg($('dlgSet'));};
 /* ===== 起動 ===== */
 const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:'){
+  // 新しい版の仕組みが届いたら、1回だけ自動で開き直して最新の画面にする（初回の設定中は除く）
+  const hadController=!!navigator.serviceWorker.controller;let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!hadController||reloaded||document.querySelector('dialog[open]'))return;reloaded=true;location.reload();});
+  navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{});
+}
+/** 保存している画面をすべて捨てて、GitHubから最新版を読み込み直す */
+async function forceUpdate(){
+  try{const regs=await navigator.serviceWorker.getRegistrations();await Promise.all(regs.map(r=>r.unregister()));}catch(e){}
+  try{const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}catch(e){}
+  location.replace(location.pathname+'?v='+Date.now());
+}
 function boot(){
   let skip=false;try{skip=sessionStorage.getItem('kb_browser')==='1';}catch(e){}
   if(isIOS&&!standalone&&!conf()&&!skip){
